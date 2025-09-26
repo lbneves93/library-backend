@@ -1,2 +1,3 @@
-# library-backend
-Backend Test for Ballast Lane
+# Library Backend API
+
+A Rails API-only backend application for a Library application, containerized with Docker.
