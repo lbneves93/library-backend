@@ -7,6 +7,7 @@ RUN apt-get update -qq && apt-get install -y \
     libpq-dev \
     nodejs \
     npm \
+    nano \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory

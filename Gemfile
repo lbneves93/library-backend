@@ -12,6 +12,13 @@ gem "puma", ">= 5.0"
 # Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]
 # gem "bcrypt", "~> 3.1.7"
 
+# Authentication
+gem "devise", "~> 4.9.4"
+gem "devise-jwt", "~> 0.10"
+
+# Serializer
+gem "jsonapi-serializer", "~> 2.2"
+
 # Windows does not include zoneinfo files, so bundle the tzinfo-data gem
 gem "tzinfo-data", platforms: %i[ windows jruby ]
 
@@ -59,4 +66,6 @@ group :development, :test do
 
   # Omakase Ruby styling [https://github.com/rails/rubocop-rails-omakase/]
   gem "rubocop-rails-omakase", require: false
+
+  gem 'shoulda-matchers', '~> 6.0'
 end
