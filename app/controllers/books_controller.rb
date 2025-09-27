@@ -1,6 +1,10 @@
 class BooksController < ApplicationController
   before_action :authenticate_user!
   before_action :set_book, only: [:show, :update, :destroy]
+  
+  # Authorization
+  authorize_resource except: [:index, :show, :borrow]
+  authorize_resource :book, only: [:borrow]
 
   # GET /books
   def index

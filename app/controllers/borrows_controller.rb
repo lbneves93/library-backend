@@ -1,6 +1,9 @@
 class BorrowsController < ApplicationController
   before_action :authenticate_user!
   before_action :set_borrow, only: [:update]
+  
+  # Authorization - only librarians can update borrows
+  authorize_resource
 
   # PATCH /borrows/:id
   def update

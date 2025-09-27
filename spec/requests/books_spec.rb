@@ -544,6 +544,9 @@ RSpec.describe "Books", type: :request do
   end
 
   describe "Authorization" do
+    let(:member_user) { create(:user, role: 'member') }
+    let(:librarian_user) { create(:user, role: 'librarian') }
+
     context "when not authenticated" do
       before do
         sign_out user
@@ -572,6 +575,80 @@ RSpec.describe "Books", type: :request do
       it "redirects to login for destroy" do
         delete book_path(book)
         expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context "role-based authorization" do
+      describe "for member users" do
+        before do
+          sign_in member_user
+        end
+
+        it "allows reading books" do
+          get books_path
+          expect(response).to have_http_status(:success)
+        end
+
+        it "allows showing individual books" do
+          get book_path(book)
+          expect(response).to have_http_status(:success)
+        end
+
+        it "allows borrowing books" do
+          post borrow_book_path(book)
+          expect(response).to have_http_status(:created)
+        end
+
+        it "denies creating books" do
+          post books_path, params: { book: valid_attributes }
+          expect(response).to have_http_status(:forbidden)
+        end
+
+        it "denies updating books" do
+          patch book_path(book), params: { book: valid_attributes }
+          expect(response).to have_http_status(:forbidden)
+        end
+
+        it "denies destroying books" do
+          delete book_path(book)
+          expect(response).to have_http_status(:forbidden)
+        end
+      end
+
+      describe "for librarian users" do
+        before do
+          sign_in librarian_user
+        end
+
+        it "allows reading books" do
+          get books_path
+          expect(response).to have_http_status(:success)
+        end
+
+        it "allows showing individual books" do
+          get book_path(book)
+          expect(response).to have_http_status(:success)
+        end
+
+        it "allows borrowing books" do
+          post borrow_book_path(book)
+          expect(response).to have_http_status(:created)
+        end
+
+        it "allows creating books" do
+          post books_path, params: { book: valid_attributes }
+          expect(response).to have_http_status(:created)
+        end
+
+        it "allows updating books" do
+          patch book_path(book), params: { book: valid_attributes }
+          expect(response).to have_http_status(:success)
+        end
+
+        it "allows destroying books" do
+          delete book_path(book)
+          expect(response).to have_http_status(:no_content)
+        end
       end
     end
   end

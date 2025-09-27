@@ -68,5 +68,38 @@ RSpec.describe "Borrows", type: :request do
         expect(response).to have_http_status(:unauthorized)
       end
     end
+
+    context "role-based authorization" do
+      let(:member_user) { create(:user, role: 'member') }
+      let(:librarian_user) { create(:user, role: 'librarian') }
+      let(:member_borrow) { create(:borrow, borrower: member_user, book: book, returned: false) }
+
+      describe "for member users" do
+        before do
+          sign_in member_user
+        end
+
+        it "denies updating borrows" do
+          patch borrow_path(member_borrow), params: { borrow: { returned: true } }
+          expect(response).to have_http_status(:forbidden)
+        end
+      end
+
+      describe "for librarian users" do
+        before do
+          sign_in librarian_user
+        end
+
+        it "allows updating borrows" do
+          patch borrow_path(borrow), params: { borrow: { returned: true } }
+          expect(response).to have_http_status(:success)
+        end
+
+        it "allows updating any member's borrow" do
+          patch borrow_path(member_borrow), params: { borrow: { returned: true } }
+          expect(response).to have_http_status(:success)
+        end
+      end
+    end
   end
 end

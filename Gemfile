@@ -16,6 +16,9 @@ gem "puma", ">= 5.0"
 gem "devise", "~> 4.9.4"
 gem "devise-jwt", "~> 0.10"
 
+# Authorization
+gem "cancancan", "~> 3.5"
+
 # Serializer
 gem "jsonapi-serializer", "~> 2.2"
 
