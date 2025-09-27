@@ -5,5 +5,7 @@ class User < ApplicationRecord
   
   enum :role, { member: 0, librarian: 1 }, validate: true
 
-
+  # Borrow relationships
+  has_many :borrows, foreign_key: 'borrower_id'
+  has_many :books, through: :borrows
 end

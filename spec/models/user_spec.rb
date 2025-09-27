@@ -18,4 +18,9 @@ RSpec.describe User, type: :model do
 
     it { expect(user).to be_invalid }
   end
+
+  describe 'associations' do
+    it { should have_many(:borrows).with_foreign_key('borrower_id') }
+    it { should have_many(:books).through(:borrows) }
+  end
 end
