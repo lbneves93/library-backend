@@ -1,4 +1,5 @@
 Rails.application.routes.draw do
+  get "dashboard/report"
   get "borrows/update"
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
@@ -26,6 +27,9 @@ Rails.application.routes.draw do
   
   # Borrows resource routes
   resources :borrows, only: [:update]
+
+  # Dashboard route
+  get 'dashboard', to: 'dashboard#report'
 
   # Defines the root path route ("/")
   #root"#index"

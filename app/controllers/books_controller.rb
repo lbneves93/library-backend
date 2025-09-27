@@ -15,7 +15,12 @@ class BooksController < ApplicationController
       )
     end
     
-    render json: @books, each_serializer: BookSerializer
+    # Use different serializer based on user role
+    if current_user.librarian?
+      render json: @books, each_serializer: LibrarianBookSerializer
+    else
+      render json: @books, each_serializer: BookSerializer
+    end
   end
 
   # GET /books/:id

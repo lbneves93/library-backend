@@ -22,6 +22,123 @@ RSpec.describe "Books", type: :request do
       expect(JSON.parse(response.body).length).to eq(3)
     end
 
+    describe "role-based serialization" do
+      let!(:book1) { create(:book, title: "Book 1") }
+      let!(:book2) { create(:book, title: "Book 2") }
+      let!(:member_user) { create(:user, role: 'member') }
+      let!(:librarian_user) { create(:user, role: 'librarian') }
+
+      context "when user is a member" do
+        before do
+          sign_in member_user
+        end
+
+        it "returns books with standard serializer" do
+          get books_path
+          books = JSON.parse(response.body)
+          
+          expect(books.length).to eq(2)
+          books.each do |book|
+            expect(book).to have_key('id')
+            expect(book).to have_key('title')
+            expect(book).to have_key('author')
+            expect(book).to have_key('genre')
+            expect(book).to have_key('isbn')
+            expect(book).to have_key('total_copies')
+            expect(book).to have_key('available')
+            expect(book).to have_key('created_at')
+            expect(book).to have_key('updated_at')
+            expect(book).not_to have_key('borrows')
+          end
+        end
+      end
+
+      context "when user is a librarian" do
+        before do
+          sign_in librarian_user
+        end
+
+        it "returns books with librarian serializer including borrows" do
+          get books_path
+          books = JSON.parse(response.body)
+          
+          expect(books.length).to eq(2)
+          books.each do |book|
+            expect(book).to have_key('id')
+            expect(book).to have_key('title')
+            expect(book).to have_key('author')
+            expect(book).to have_key('genre')
+            expect(book).to have_key('isbn')
+            expect(book).to have_key('total_copies')
+            expect(book).to have_key('available')
+            expect(book).to have_key('created_at')
+            expect(book).to have_key('updated_at')
+            expect(book).to have_key('borrows')
+            expect(book['borrows']).to be_an(Array)
+          end
+        end
+
+        context "when books have borrows" do
+          let!(:borrower1) { create(:user, name: "John Doe", email: "john@example.com") }
+          let!(:borrower2) { create(:user, name: "Jane Smith", email: "jane@example.com") }
+          let!(:borrow1) { create(:borrow, book: book1, borrower: borrower1, returned: false) }
+          let!(:borrow2) { create(:borrow, book: book1, borrower: borrower2, returned: true) }
+          let!(:borrow3) { create(:borrow, book: book2, borrower: borrower1, returned: false) }
+
+          it "includes borrows information for each book" do
+            get books_path
+            books = JSON.parse(response.body)
+            
+            book1_data = books.find { |b| b['id'] == book1.id }
+            book2_data = books.find { |b| b['id'] == book2.id }
+            
+            # Book 1 should have 2 borrows (1 active, 1 returned)
+            expect(book1_data['borrows'].length).to eq(2)
+            
+            # Book 2 should have 1 borrow (active)
+            expect(book2_data['borrows'].length).to eq(1)
+            
+            # Check borrow structure
+            borrow_data = book1_data['borrows'].first
+            expect(borrow_data).to have_key('id')
+            expect(borrow_data).to have_key('borrower_id')
+            expect(borrow_data).to have_key('borrower_name')
+            expect(borrow_data).to have_key('borrower_email')
+            expect(borrow_data).to have_key('borrowed_at')
+            expect(borrow_data).to have_key('due_at')
+            expect(borrow_data).to have_key('returned')
+            expect(borrow_data).to have_key('created_at')
+            expect(borrow_data).to have_key('updated_at')
+          end
+
+          it "includes correct borrower information" do
+            get books_path
+            books = JSON.parse(response.body)
+            
+            book1_data = books.find { |b| b['id'] == book1.id }
+            active_borrow = book1_data['borrows'].find { |b| b['returned'] == false }
+            returned_borrow = book1_data['borrows'].find { |b| b['returned'] == true }
+            
+            expect(active_borrow['borrower_name']).to eq("John Doe")
+            expect(active_borrow['borrower_email']).to eq("john@example.com")
+            expect(returned_borrow['borrower_name']).to eq("Jane Smith")
+            expect(returned_borrow['borrower_email']).to eq("jane@example.com")
+          end
+        end
+
+        context "when books have no borrows" do
+          it "returns empty borrows array" do
+            get books_path
+            books = JSON.parse(response.body)
+            
+            books.each do |book|
+              expect(book['borrows']).to eq([])
+            end
+          end
+        end
+      end
+    end
+
     describe "search" do
       let!(:book1) { create(:book, title: "The Great Gatsby", author: "F. Scott Fitzgerald", genre: "Fiction") }
       let!(:book2) { create(:book, title: "1984", author: "George Orwell", genre: "Dystopian Fiction") }
@@ -169,6 +286,46 @@ RSpec.describe "Books", type: :request do
           books = JSON.parse(response.body)
           expect(books.length).to eq(1)
           expect(books.first['title']).to eq("The Great Gatsby")
+        end
+      end
+
+      context "role-based search results" do
+        let!(:member_user) { create(:user, role: 'member') }
+        let!(:librarian_user) { create(:user, role: 'librarian') }
+        let!(:borrower) { create(:user, name: "Test Borrower") }
+        let!(:borrow) { create(:borrow, book: book1, borrower: borrower, returned: false) }
+
+        context "when member searches" do
+          before do
+            sign_in member_user
+          end
+
+          it "returns search results without borrows information" do
+            get books_path, params: { search: "Gatsby" }
+            books = JSON.parse(response.body)
+            
+            expect(books.length).to eq(1)
+            expect(books.first).to have_key('title')
+            expect(books.first).not_to have_key('borrows')
+          end
+        end
+
+        context "when librarian searches" do
+          before do
+            sign_in librarian_user
+          end
+
+          it "returns search results with borrows information" do
+            get books_path, params: { search: "Gatsby" }
+            books = JSON.parse(response.body)
+            
+            expect(books.length).to eq(1)
+            expect(books.first).to have_key('title')
+            expect(books.first).to have_key('borrows')
+            expect(books.first['borrows']).to be_an(Array)
+            expect(books.first['borrows'].length).to eq(1)
+            expect(books.first['borrows'].first['borrower_name']).to eq("Test Borrower")
+          end
         end
       end
     end
