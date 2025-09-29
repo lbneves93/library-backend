@@ -51,6 +51,11 @@ docker compose up
 docker compose run --rm web rspec
 ```
 
+### Postman Collection
+
+* Test the requests using postman collection. The colletion is on root path on file named "Library.postman_collection.json"
+* Import this collection to your postman.
+
 ## Database ER Diagram
 
 ```mermaid
