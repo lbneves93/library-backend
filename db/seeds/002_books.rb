@@ -3,7 +3,7 @@ p 'Creating books...'
 books = [
   { title: 'The Great Gatsby', author: 'F. Scott Fitzgerald', genre: 'Fiction', isbn: '9780743273565', total_copies: 5 },
   { title: 'To Kill a Mockingbird', author: 'Harper Lee', genre: 'Fiction', isbn: '9780061120084', total_copies: 3 },
-  { title: '1984', author: 'George Orwell', genre: 'Dystopian Fiction', isbn: '9780451524935', total_copies: 4 },
+  { title: '1984', author: 'George Orwell', genre: 'Dystopian Fiction', isbn: '9780451524935', total_copies: 2 },
   { title: 'Pride and Prejudice', author: 'Jane Austen', genre: 'Romance', isbn: '9780141439518', total_copies: 6 },
   { title: 'The Catcher in the Rye', author: 'J.D. Salinger', genre: 'Fiction', isbn: '9780316769174', total_copies: 2 },
   { title: 'Lord of the Flies', author: 'William Golding', genre: 'Fiction', isbn: '9780571056866', total_copies: 3 },
