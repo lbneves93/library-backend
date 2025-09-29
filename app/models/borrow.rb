@@ -12,6 +12,8 @@ class Borrow < ApplicationRecord
   after_create :update_book_availability_after_borrow
   after_update :update_book_availability_after_return, if: :saved_change_to_returned?
 
+  scope :not_returned, -> { where(returned: false) }
+
   private
 
   def book_must_be_available

@@ -19,7 +19,8 @@ RSpec.describe "Books", type: :request do
     it "returns all books" do
       create_list(:book, 3)
       get books_path
-      expect(JSON.parse(response.body).length).to eq(3)
+      response_data = JSON.parse(response.body)
+      expect(response_data['data'].length).to eq(3)
     end
 
     describe "role-based serialization" do
@@ -35,20 +36,24 @@ RSpec.describe "Books", type: :request do
 
         it "returns books with standard serializer" do
           get books_path
-          books = JSON.parse(response.body)
+          response_data = JSON.parse(response.body)
+          books = response_data['data']
           
           expect(books.length).to eq(2)
           books.each do |book|
             expect(book).to have_key('id')
-            expect(book).to have_key('title')
-            expect(book).to have_key('author')
-            expect(book).to have_key('genre')
-            expect(book).to have_key('isbn')
-            expect(book).to have_key('total_copies')
-            expect(book).to have_key('available')
-            expect(book).to have_key('created_at')
-            expect(book).to have_key('updated_at')
-            expect(book).not_to have_key('borrows')
+            expect(book).to have_key('type')
+            expect(book['type']).to eq('book')
+            attributes = book['attributes']
+            expect(attributes).to have_key('title')
+            expect(attributes).to have_key('author')
+            expect(attributes).to have_key('genre')
+            expect(attributes).to have_key('isbn')
+            expect(attributes).to have_key('total_copies')
+            expect(attributes).to have_key('available')
+            expect(attributes).to have_key('created_at')
+            expect(attributes).to have_key('updated_at')
+            expect(attributes).not_to have_key('borrows')
           end
         end
       end
@@ -60,46 +65,52 @@ RSpec.describe "Books", type: :request do
 
         it "returns books with librarian serializer including borrows" do
           get books_path
-          books = JSON.parse(response.body)
+          response_data = JSON.parse(response.body)
+          books = response_data['data']
           
           expect(books.length).to eq(2)
           books.each do |book|
             expect(book).to have_key('id')
-            expect(book).to have_key('title')
-            expect(book).to have_key('author')
-            expect(book).to have_key('genre')
-            expect(book).to have_key('isbn')
-            expect(book).to have_key('total_copies')
-            expect(book).to have_key('available')
-            expect(book).to have_key('created_at')
-            expect(book).to have_key('updated_at')
-            expect(book).to have_key('borrows')
-            expect(book['borrows']).to be_an(Array)
+            expect(book).to have_key('type')
+            expect(book['type']).to eq('librarian_book')
+            attributes = book['attributes']
+            expect(attributes).to have_key('title')
+            expect(attributes).to have_key('author')
+            expect(attributes).to have_key('genre')
+            expect(attributes).to have_key('isbn')
+            expect(attributes).to have_key('total_copies')
+            expect(attributes).to have_key('available')
+            expect(attributes).to have_key('created_at')
+            expect(attributes).to have_key('updated_at')
+            expect(attributes).to have_key('borrows')
+            expect(attributes['borrows']).to be_an(Array)
           end
         end
 
         context "when books have borrows" do
+          let!(:book1_with_copies) { create(:book, title: "Book 1", total_copies: 2) }
           let!(:borrower1) { create(:user, name: "John Doe", email: "john@example.com") }
           let!(:borrower2) { create(:user, name: "Jane Smith", email: "jane@example.com") }
-          let!(:borrow1) { create(:borrow, book: book1, borrower: borrower1, returned: false) }
-          let!(:borrow2) { create(:borrow, book: book1, borrower: borrower2, returned: true) }
+          let!(:borrow1) { create(:borrow, book: book1_with_copies, borrower: borrower1, returned: false) }
+          let!(:borrow2) { create(:borrow, book: book1_with_copies, borrower: borrower2, returned: true) }
           let!(:borrow3) { create(:borrow, book: book2, borrower: borrower1, returned: false) }
 
-          it "includes borrows information for each book" do
+          it "includes not returned borrows information for each book" do
             get books_path
-            books = JSON.parse(response.body)
+            response_data = JSON.parse(response.body)
+            books = response_data['data']
             
-            book1_data = books.find { |b| b['id'] == book1.id }
-            book2_data = books.find { |b| b['id'] == book2.id }
+            book1_data = books.find { |b| b['id'] == book1_with_copies.id.to_s }
+            book2_data = books.find { |b| b['id'] == book2.id.to_s }
             
-            # Book 1 should have 2 borrows (1 active, 1 returned)
-            expect(book1_data['borrows'].length).to eq(2)
+            # Book 1 should have 2 borrows (1 not returned, 1 returned), count just not returned 
+            expect(book1_data['attributes']['borrows'].length).to eq(1)
             
-            # Book 2 should have 1 borrow (active)
-            expect(book2_data['borrows'].length).to eq(1)
+            # Book 2 should have 1 borrow (not returned)
+            expect(book2_data['attributes']['borrows'].length).to eq(1)
             
             # Check borrow structure
-            borrow_data = book1_data['borrows'].first
+            borrow_data = book1_data['attributes']['borrows'].first
             expect(borrow_data).to have_key('id')
             expect(borrow_data).to have_key('borrower_id')
             expect(borrow_data).to have_key('borrower_name')
@@ -110,29 +121,16 @@ RSpec.describe "Books", type: :request do
             expect(borrow_data).to have_key('created_at')
             expect(borrow_data).to have_key('updated_at')
           end
-
-          it "includes correct borrower information" do
-            get books_path
-            books = JSON.parse(response.body)
-            
-            book1_data = books.find { |b| b['id'] == book1.id }
-            active_borrow = book1_data['borrows'].find { |b| b['returned'] == false }
-            returned_borrow = book1_data['borrows'].find { |b| b['returned'] == true }
-            
-            expect(active_borrow['borrower_name']).to eq("John Doe")
-            expect(active_borrow['borrower_email']).to eq("john@example.com")
-            expect(returned_borrow['borrower_name']).to eq("Jane Smith")
-            expect(returned_borrow['borrower_email']).to eq("jane@example.com")
-          end
         end
 
         context "when books have no borrows" do
           it "returns empty borrows array" do
             get books_path
-            books = JSON.parse(response.body)
+            response_data = JSON.parse(response.body)
+            books = response_data['data']
             
             books.each do |book|
-              expect(book['borrows']).to eq([])
+              expect(book['attributes']['borrows']).to eq([])
             end
           end
         end
@@ -148,67 +146,76 @@ RSpec.describe "Books", type: :request do
       context "when searching by title" do
         it "returns books matching the title" do
           get books_path, params: { search: "Gatsby" }
-          books = JSON.parse(response.body)
+          response_data = JSON.parse(response.body)
+          books = response_data['data']
           expect(books.length).to eq(1)
-          expect(books.first['title']).to eq("The Great Gatsby")
+          expect(books.first['attributes']['title']).to eq("The Great Gatsby")
         end
 
         it "returns books with partial title match" do
           get books_path, params: { search: "Great" }
-          books = JSON.parse(response.body)
+          response_data = JSON.parse(response.body)
+          books = response_data['data']
           expect(books.length).to eq(1)
-          expect(books.first['title']).to eq("The Great Gatsby")
+          expect(books.first['attributes']['title']).to eq("The Great Gatsby")
         end
 
         it "is case insensitive" do
           get books_path, params: { search: "gatsby" }
-          books = JSON.parse(response.body)
+          response_data = JSON.parse(response.body)
+          books = response_data['data']
           expect(books.length).to eq(1)
-          expect(books.first['title']).to eq("The Great Gatsby")
+          expect(books.first['attributes']['title']).to eq("The Great Gatsby")
         end
       end
 
       context "when searching by author" do
         it "returns books matching the author" do
           get books_path, params: { search: "Orwell" }
-          books = JSON.parse(response.body)
+          response_data = JSON.parse(response.body)
+          books = response_data['data']
           expect(books.length).to eq(1)
-          expect(books.first['author']).to eq("George Orwell")
+          expect(books.first['attributes']['author']).to eq("George Orwell")
         end
 
         it "returns books with partial author match" do
           get books_path, params: { search: "George" }
-          books = JSON.parse(response.body)
+          response_data = JSON.parse(response.body)
+          books = response_data['data']
           expect(books.length).to eq(1)
-          expect(books.first['author']).to eq("George Orwell")
+          expect(books.first['attributes']['author']).to eq("George Orwell")
         end
 
         it "is case insensitive" do
           get books_path, params: { search: "orwell" }
-          books = JSON.parse(response.body)
+          response_data = JSON.parse(response.body)
+          books = response_data['data']
           expect(books.length).to eq(1)
-          expect(books.first['author']).to eq("George Orwell")
+          expect(books.first['attributes']['author']).to eq("George Orwell")
         end
       end
 
       context "when searching by genre" do
         it "returns books matching the genre" do
           get books_path, params: { search: "Fiction" }
-          books = JSON.parse(response.body)
+          response_data = JSON.parse(response.body)
+          books = response_data['data']
           expect(books.length).to eq(2)
-          expect(books.map { |b| b['title'] }).to contain_exactly("The Great Gatsby", "1984")
+          expect(books.map { |b| b['attributes']['title'] }).to contain_exactly("The Great Gatsby", "1984")
         end
 
         it "returns books with partial genre match" do
           get books_path, params: { search: "Fantasy" }
-          books = JSON.parse(response.body)
+          response_data = JSON.parse(response.body)
+          books = response_data['data']
           expect(books.length).to eq(1)
-          expect(books.first['title']).to eq("The Hobbit")
+          expect(books.first['attributes']['title']).to eq("The Hobbit")
         end
 
         it "is case insensitive" do
           get books_path, params: { search: "fiction" }
-          books = JSON.parse(response.body)
+          response_data = JSON.parse(response.body)
+          books = response_data['data']
           expect(books.length).to eq(2)
         end
       end
@@ -216,16 +223,18 @@ RSpec.describe "Books", type: :request do
       context "when searching across multiple fields" do
         it "returns books matching any field" do
           get books_path, params: { search: "Jane" }
-          books = JSON.parse(response.body)
+          response_data = JSON.parse(response.body)
+          books = response_data['data']
           expect(books.length).to eq(1)
-          expect(books.first['author']).to eq("Jane Austen")
+          expect(books.first['attributes']['author']).to eq("Jane Austen")
         end
 
         it "returns multiple books when search term matches multiple fields" do
           # Create a book where title contains "The" and another where author contains "The"
           create(:book, title: "The Road", author: "Cormac McCarthy", genre: "Post-Apocalyptic")
           get books_path, params: { search: "The" }
-          books = JSON.parse(response.body)
+          response_data = JSON.parse(response.body)
+          books = response_data['data']
           expect(books.length).to eq(3) # The Great Gatsby, The Hobbit, The Road
         end
       end
@@ -233,7 +242,8 @@ RSpec.describe "Books", type: :request do
       context "when no search results found" do
         it "returns empty array" do
           get books_path, params: { search: "NonExistentBook" }
-          books = JSON.parse(response.body)
+          response_data = JSON.parse(response.body)
+          books = response_data['data']
           expect(books.length).to eq(0)
         end
       end
@@ -241,7 +251,8 @@ RSpec.describe "Books", type: :request do
       context "when search parameter is empty" do
         it "returns all books" do
           get books_path, params: { search: "" }
-          books = JSON.parse(response.body)
+          response_data = JSON.parse(response.body)
+          books = response_data['data']
           expect(books.length).to eq(4)
         end
       end
@@ -249,7 +260,8 @@ RSpec.describe "Books", type: :request do
       context "when search parameter is nil" do
         it "returns all books" do
           get books_path, params: { search: nil }
-          books = JSON.parse(response.body)
+          response_data = JSON.parse(response.body)
+          books = response_data['data']
           expect(books.length).to eq(4)
         end
       end
@@ -257,7 +269,8 @@ RSpec.describe "Books", type: :request do
       context "when no search parameter provided" do
         it "returns all books" do
           get books_path
-          books = JSON.parse(response.body)
+          response_data = JSON.parse(response.body)
+          books = response_data['data']
           expect(books.length).to eq(4)
         end
       end
@@ -267,25 +280,28 @@ RSpec.describe "Books", type: :request do
 
         it "handles apostrophes in search" do
           get books_path, params: { search: "Cat's" }
-          books = JSON.parse(response.body)
+          response_data = JSON.parse(response.body)
+          books = response_data['data']
           expect(books.length).to eq(1)
-          expect(books.first['title']).to eq("The Cat's Cradle")
+          expect(books.first['attributes']['title']).to eq("The Cat's Cradle")
         end
 
         it "handles apostrophes in partial search" do
           get books_path, params: { search: "Cat" }
-          books = JSON.parse(response.body)
+          response_data = JSON.parse(response.body)
+          books = response_data['data']
           expect(books.length).to eq(1)
-          expect(books.first['title']).to eq("The Cat's Cradle")
+          expect(books.first['attributes']['title']).to eq("The Cat's Cradle")
         end
       end
 
       context "when searching with whitespace" do
         it "trims whitespace and searches" do
           get books_path, params: { search: "  Gatsby  " }
-          books = JSON.parse(response.body)
+          response_data = JSON.parse(response.body)
+          books = response_data['data']
           expect(books.length).to eq(1)
-          expect(books.first['title']).to eq("The Great Gatsby")
+          expect(books.first['attributes']['title']).to eq("The Great Gatsby")
         end
       end
 
@@ -302,11 +318,12 @@ RSpec.describe "Books", type: :request do
 
           it "returns search results without borrows information" do
             get books_path, params: { search: "Gatsby" }
-            books = JSON.parse(response.body)
+            response_data = JSON.parse(response.body)
+            books = response_data['data']
             
             expect(books.length).to eq(1)
-            expect(books.first).to have_key('title')
-            expect(books.first).not_to have_key('borrows')
+            expect(books.first['attributes']).to have_key('title')
+            expect(books.first['attributes']).not_to have_key('borrows')
           end
         end
 
@@ -317,14 +334,15 @@ RSpec.describe "Books", type: :request do
 
           it "returns search results with borrows information" do
             get books_path, params: { search: "Gatsby" }
-            books = JSON.parse(response.body)
+            response_data = JSON.parse(response.body)
+            books = response_data['data']
             
             expect(books.length).to eq(1)
-            expect(books.first).to have_key('title')
-            expect(books.first).to have_key('borrows')
-            expect(books.first['borrows']).to be_an(Array)
-            expect(books.first['borrows'].length).to eq(1)
-            expect(books.first['borrows'].first['borrower_name']).to eq("Test Borrower")
+            expect(books.first['attributes']).to have_key('title')
+            expect(books.first['attributes']).to have_key('borrows')
+            expect(books.first['attributes']['borrows']).to be_an(Array)
+            expect(books.first['attributes']['borrows'].length).to eq(1)
+            expect(books.first['attributes']['borrows'].first['borrower_name']).to eq("Test Borrower")
           end
         end
       end
@@ -339,7 +357,8 @@ RSpec.describe "Books", type: :request do
 
     it "returns the specific book" do
       get book_path(book)
-      expect(JSON.parse(response.body)['id']).to eq(book.id)
+      response_data = JSON.parse(response.body)
+      expect(response_data['data']['id']).to eq(book.id.to_s)
     end
 
     it "returns 404 for non-existent book" do
@@ -349,6 +368,12 @@ RSpec.describe "Books", type: :request do
   end
 
   describe "POST /books" do
+    let(:librarian_user) { create(:user, role: 'librarian') }
+    
+    before do
+      sign_in librarian_user
+    end
+    
     context "with valid parameters" do
       it "creates a new book" do
         expect {
@@ -363,7 +388,8 @@ RSpec.describe "Books", type: :request do
 
       it "returns the created book" do
         post books_path, params: { book: valid_attributes }
-        expect(JSON.parse(response.body)['title']).to eq(valid_attributes[:title])
+        response_data = JSON.parse(response.body)
+        expect(response_data['data']['attributes']['title']).to eq(valid_attributes[:title])
       end
     end
 
@@ -387,6 +413,12 @@ RSpec.describe "Books", type: :request do
   end
 
   describe "PATCH /books/:id" do
+    let(:librarian_user) { create(:user, role: 'librarian') }
+    
+    before do
+      sign_in librarian_user
+    end
+    
     context "with valid parameters" do
       let(:new_attributes) { { title: 'Updated Title' } }
 
@@ -403,7 +435,8 @@ RSpec.describe "Books", type: :request do
 
       it "returns the updated book" do
         patch book_path(book), params: { book: new_attributes }
-        expect(JSON.parse(response.body)['title']).to eq('Updated Title')
+        response_data = JSON.parse(response.body)
+        expect(response_data['data']['attributes']['title']).to eq('Updated Title')
       end
     end
 
@@ -433,6 +466,12 @@ RSpec.describe "Books", type: :request do
   end
 
   describe "DELETE /books/:id" do
+    let(:librarian_user) { create(:user, role: 'librarian') }
+    
+    before do
+      sign_in librarian_user
+    end
+    
     it "destroys the book" do
       book_to_delete = create(:book)
       expect {

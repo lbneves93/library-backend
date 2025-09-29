@@ -2,11 +2,12 @@ require 'rails_helper'
 
 RSpec.describe "Borrows", type: :request do
   let(:user) { create(:user) }
+  let(:librarian_user) { create(:user, role: 'librarian') }
   let(:book) { create(:book, available: true, total_copies: 1) }
   let(:borrow) { create(:borrow, borrower: user, book: book, returned: false) }
 
   before do
-    sign_in user
+    sign_in librarian_user
   end
 
   describe "PATCH /borrows/:id" do
@@ -28,6 +29,8 @@ RSpec.describe "Borrows", type: :request do
       end
 
       it "updates book availability when returned" do
+        # Ensure the borrow is created and book availability is updated
+        borrow.reload
         book.reload
         expect(book.available).to be false
         
@@ -39,10 +42,10 @@ RSpec.describe "Borrows", type: :request do
 
     context "when updating other fields" do
       it "updates the borrow record" do
-        new_due_date = 1.week.from_now
+        new_due_date = Date.current + 1.week
         patch borrow_path(borrow), params: { borrow: { due_at: new_due_date } }
         borrow.reload
-        expect(borrow.due_at).to be_within(1.minute).of(new_due_date)
+        expect(borrow.due_at.to_date).to eq(new_due_date)
       end
 
       it "returns http success" do

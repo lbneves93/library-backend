@@ -23,6 +23,6 @@ class BorrowsController < ApplicationController
   end
 
   def borrow_params
-    params.require(:borrow).permit(:returned)
+    params.require(:borrow).permit(:returned, :due_at)
   end
 end

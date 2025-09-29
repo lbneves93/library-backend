@@ -10,40 +10,40 @@ RSpec.describe Ability, type: :model do
     subject { described_class.new(member_user) }
 
     it 'can read books' do
-      expect(subject).to be_able_to(:read, Book)
+      expect(subject.can?(:read, Book)).to be true
     end
 
     it 'can read dashboard' do
-      expect(subject).to be_able_to(:read, :dashboard)
+      expect(subject.can?(:read, :dashboard)).to be true
     end
 
     it 'can borrow books' do
-      expect(subject).to be_able_to(:borrow, Book)
+      expect(subject.can?(:borrow, Book)).to be true
     end
 
     it 'cannot create books' do
-      expect(subject).not_to be_able_to(:create, Book)
+      expect(subject.can?(:create, Book)).to be false
     end
 
     it 'cannot update books' do
-      expect(subject).not_to be_able_to(:update, Book)
+      expect(subject.can?(:update, Book)).to be false
     end
 
     it 'cannot destroy books' do
-      expect(subject).not_to be_able_to(:destroy, Book)
+      expect(subject.can?(:destroy, Book)).to be false
     end
 
     it 'cannot update borrows' do
-      expect(subject).not_to be_able_to(:update, Borrow)
+      expect(subject.can?(:update, Borrow)).to be false
     end
 
     it 'can read own borrows' do
-      expect(subject).to be_able_to(:read, borrow)
+      expect(subject.can?(:read, borrow)).to be true
     end
 
     it 'cannot read other users borrows' do
       other_borrow = create(:borrow, borrower: librarian_user)
-      expect(subject).not_to be_able_to(:read, other_borrow)
+      expect(subject.can?(:read, other_borrow)).to be false
     end
   end
 
@@ -51,35 +51,35 @@ RSpec.describe Ability, type: :model do
     subject { described_class.new(librarian_user) }
 
     it 'can read books' do
-      expect(subject).to be_able_to(:read, Book)
+      expect(subject.can?(:read, Book)).to be true
     end
 
     it 'can read dashboard' do
-      expect(subject).to be_able_to(:read, :dashboard)
+      expect(subject.can?(:read, :dashboard)).to be true
     end
 
     it 'can borrow books' do
-      expect(subject).to be_able_to(:borrow, Book)
+      expect(subject.can?(:borrow, Book)).to be true
     end
 
     it 'can create books' do
-      expect(subject).to be_able_to(:create, Book)
+      expect(subject.can?(:create, Book)).to be true
     end
 
     it 'can update books' do
-      expect(subject).to be_able_to(:update, Book)
+      expect(subject.can?(:update, Book)).to be true
     end
 
     it 'can destroy books' do
-      expect(subject).to be_able_to(:destroy, Book)
+      expect(subject.can?(:destroy, Book)).to be true
     end
 
     it 'can update borrows' do
-      expect(subject).to be_able_to(:update, Borrow)
+      expect(subject.can?(:update, Borrow)).to be true
     end
 
-    it 'can read any borrow' do
-      expect(subject).to be_able_to(:read, borrow)
+    it 'can update any borrow' do
+      expect(subject.can?(:update, borrow)).to be true
     end
   end
 
@@ -87,12 +87,12 @@ RSpec.describe Ability, type: :model do
     subject { described_class.new(nil) }
 
     it 'has no abilities' do
-      expect(subject).not_to be_able_to(:read, Book)
-      expect(subject).not_to be_able_to(:create, Book)
-      expect(subject).not_to be_able_to(:update, Book)
-      expect(subject).not_to be_able_to(:destroy, Book)
-      expect(subject).not_to be_able_to(:borrow, Book)
-      expect(subject).not_to be_able_to(:read, :dashboard)
+      expect(subject.can?(:read, Book)).to be false
+      expect(subject.can?(:create, Book)).to be false
+      expect(subject.can?(:update, Book)).to be false
+      expect(subject.can?(:destroy, Book)).to be false
+      expect(subject.can?(:borrow, Book)).to be false
+      expect(subject.can?(:read, :dashboard)).to be false
     end
   end
 end

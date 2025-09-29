@@ -3,7 +3,7 @@ FactoryBot.define do
     title { Faker::Book.title }
     author { Faker::Book.author }
     genre { Faker::Book.genre }
-    isbn { Faker::Code.isbn(base: 13) }
+    isbn { Faker::Number.number(digits: 13) }
     total_copies { Faker::Number.between(from: 1, to: 10) }
   end
 end

@@ -8,7 +8,7 @@ class BooksController < ApplicationController
 
   # GET /books
   def index
-    @books = Book.all
+    @books = Book.includes(borrows: :borrower).all
     
     # Search functionality
     if params[:search].present?
@@ -21,15 +21,20 @@ class BooksController < ApplicationController
     
     # Use different serializer based on user role
     if current_user.librarian?
-      render json: @books, each_serializer: LibrarianBookSerializer
+      render json: LibrarianBookSerializer.new(@books).serializable_hash
     else
-      render json: @books, each_serializer: BookSerializer
+      render json: BookSerializer.new(@books).serializable_hash
     end
   end
 
   # GET /books/:id
   def show
-    render json: @book, serializer: BookSerializer
+    # Use different serializer based on user role
+    if current_user.librarian?
+      render json: LibrarianBookSerializer.new(@book).serializable_hash
+    else
+      render json: BookSerializer.new(@book).serializable_hash
+    end
   end
 
   # POST /books
@@ -37,7 +42,7 @@ class BooksController < ApplicationController
     @book = Book.new(book_params)
     
     if @book.save
-      render json: @book, serializer: BookSerializer, status: :created
+      render json: BookSerializer.new(@book).serializable_hash, status: :created
     else
       render json: { errors: @book.errors.full_messages }, status: :unprocessable_entity
     end
@@ -46,7 +51,7 @@ class BooksController < ApplicationController
   # PATCH/PUT /books/:id
   def update
     if @book.update(book_params)
-      render json: @book, serializer: BookSerializer
+      render json: BookSerializer.new(@book).serializable_hash
     else
       render json: { errors: @book.errors.full_messages }, status: :unprocessable_entity
     end

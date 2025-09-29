@@ -84,8 +84,8 @@ RSpec.describe "Dashboards", type: :request do
         sign_in librarian_user
       end
 
-      let!(:book1) { create(:book, title: "Book 1", author: "Author 1") }
-      let!(:book2) { create(:book, title: "Book 2", author: "Author 2") }
+      let!(:book1) { create(:book, title: "Book 1", author: "Author 1", total_copies: 2) }
+      let!(:book2) { create(:book, title: "Book 2", author: "Author 2", total_copies: 2) }
       let!(:book3) { create(:book, title: "Book 3", author: "Author 3") }
       let!(:other_member) { create(:user, role: 'member', name: 'Other Member', email: 'other@example.com') }
 
@@ -117,7 +117,7 @@ RSpec.describe "Dashboards", type: :request do
           get dashboard_path
           response_data = JSON.parse(response.body)
           
-          expect(response_data['total_borrowed_books']).to eq(3) # active_borrow1, active_borrow2, due_today_borrow, overdue_borrow
+          expect(response_data['total_borrowed_books']).to eq(4) # active_borrow1, active_borrow2, due_today_borrow, overdue_borrow
         end
 
         it "calculates books due today correctly" do

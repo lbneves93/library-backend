@@ -49,7 +49,7 @@ gem "rack-cors"
 gem "jwt"
 
 # Use Active Model Serializers for JSON API responses
-gem "active_model_serializers"
+# gem "active_model_serializers" # Removed - using jsonapi-serializer instead
 
 # Use RSpec for testing
 gem "rspec-rails"

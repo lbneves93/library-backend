@@ -7,6 +7,6 @@ class Book < ApplicationRecord
   validates :available, inclusion: { in: [true, false] }
 
   # Borrow relationships
-  has_many :borrows
-  has_many :users, through: :borrows
+  has_many :borrows, dependent: :destroy
+  has_many :users, through: :borrows, source: :borrower
 end

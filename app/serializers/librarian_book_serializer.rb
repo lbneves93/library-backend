@@ -1,8 +1,9 @@
-class LibrarianBookSerializer < ActiveModel::Serializer
-  attributes :id, :title, :author, :genre, :isbn, :total_copies, :available, :created_at, :updated_at, :borrows
+class LibrarianBookSerializer
+  include JSONAPI::Serializer
+  attributes :id, :title, :author, :genre, :isbn, :total_copies, :available, :created_at, :updated_at
 
-  def borrows
-    object.borrows.map do |borrow|
+  attribute :borrows do |object|
+    object.borrows.not_returned.includes(:borrower).map do |borrow|
       {
         id: borrow.id,
         borrower_id: borrow.borrower_id,

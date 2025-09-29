@@ -1,14 +1,19 @@
+volumes:
+  gems_library_backend:
+
+networks:
+  net_library_backend:
+
 services:
   db:
     image: postgres:15
     environment:
-      POSTGRES_DB: library_development
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: mypass
     ports:
       - "5432:5432"
+    networks: 
+      - net_library_backend
 
   redis:
     image: redis:7-alpine
@@ -19,15 +24,16 @@ services:
     build: .
     command: bash -c "rm -f tmp/pids/server.pid && rails server -b 0.0.0.0"
     volumes:
+      - gems_library_backend:/usr/local/bundle
       - .:/app
     ports:
       - "3000:3000"
+    stdin_open: true
+    tty: true
+    networks: 
+      - net_library_backend
     depends_on:
       - db
       - redis
     environment:
-      - DATABASE_URL=postgres://postgres:password@db:5432/library_development
       - REDIS_URL=redis://redis:6379/0
-
-volumes:
-  postgres_data:

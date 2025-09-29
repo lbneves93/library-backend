@@ -1,7 +1,7 @@
 FactoryBot.define do
   factory :user do
-    name { 'Leonardo' }
-    email { 'leonardo@email.com' }
+    name { Faker::Name.name }
+    email { Faker::Internet.unique.email }
     password { '123456' }
     role { 0 }
     jti { SecureRandom.hex(20) }
