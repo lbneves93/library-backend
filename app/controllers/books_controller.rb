@@ -19,6 +19,12 @@ class BooksController < ApplicationController
       )
     end
     
+    # Order functionality
+    if params[:order].present? && params[:order].strip.present?
+      order_direction = params[:order].upcase == 'DESC' ? 'DESC' : 'ASC'
+      @books = @books.order(title: order_direction)
+    end
+    
     # Use different serializer based on user role
     if current_user.librarian?
       render json: LibrarianBookSerializer.new(@books).serializable_hash

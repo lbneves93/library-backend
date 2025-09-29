@@ -347,6 +347,205 @@ RSpec.describe "Books", type: :request do
         end
       end
     end
+
+    describe "order" do
+      let!(:book1) { create(:book, title: "Alice in Wonderland") }
+      let!(:book2) { create(:book, title: "Zebra Crossing") }
+      let!(:book3) { create(:book, title: "Brave New World") }
+      let!(:book4) { create(:book, title: "1984") }
+
+      context "when ordering by title ASC" do
+        it "returns books in ascending order by title" do
+          get books_path, params: { order: "ASC" }
+          response_data = JSON.parse(response.body)
+          books = response_data['data']
+          
+          expect(books.length).to eq(4)
+          titles = books.map { |book| book['attributes']['title'] }
+          expect(titles).to eq(["1984", "Alice in Wonderland", "Brave New World", "Zebra Crossing"])
+        end
+
+        it "is case insensitive for ASC" do
+          get books_path, params: { order: "asc" }
+          response_data = JSON.parse(response.body)
+          books = response_data['data']
+          
+          expect(books.length).to eq(4)
+          titles = books.map { |book| book['attributes']['title'] }
+          expect(titles).to eq(["1984", "Alice in Wonderland", "Brave New World", "Zebra Crossing"])
+        end
+      end
+
+      context "when ordering by title DESC" do
+        it "returns books in descending order by title" do
+          get books_path, params: { order: "DESC" }
+          response_data = JSON.parse(response.body)
+          books = response_data['data']
+          
+          expect(books.length).to eq(4)
+          titles = books.map { |book| book['attributes']['title'] }
+          expect(titles).to eq(["Zebra Crossing", "Brave New World", "Alice in Wonderland", "1984"])
+        end
+
+        it "is case insensitive for DESC" do
+          get books_path, params: { order: "desc" }
+          response_data = JSON.parse(response.body)
+          books = response_data['data']
+          
+          expect(books.length).to eq(4)
+          titles = books.map { |book| book['attributes']['title'] }
+          expect(titles).to eq(["Zebra Crossing", "Brave New World", "Alice in Wonderland", "1984"])
+        end
+      end
+
+      context "when order parameter is invalid" do
+        it "defaults to ASC order" do
+          get books_path, params: { order: "INVALID" }
+          response_data = JSON.parse(response.body)
+          books = response_data['data']
+          
+          expect(books.length).to eq(4)
+          titles = books.map { |book| book['attributes']['title'] }
+          expect(titles).to eq(["1984", "Alice in Wonderland", "Brave New World", "Zebra Crossing"])
+        end
+
+        it "returns books in default order for empty string" do
+          get books_path, params: { order: "" }
+          response_data = JSON.parse(response.body)
+          books = response_data['data']
+          
+          expect(books.length).to eq(4)
+          # Empty string is treated as no order parameter, so returns default database order
+          titles = books.map { |book| book['attributes']['title'] }
+          expect(titles).to eq(["Alice in Wonderland", "Zebra Crossing", "Brave New World", "1984"])
+        end
+      end
+
+      context "when no order parameter is provided" do
+        it "returns books in default database order" do
+          get books_path
+          response_data = JSON.parse(response.body)
+          books = response_data['data']
+          
+          expect(books.length).to eq(4)
+          # Default order is by database ID (creation order)
+          titles = books.map { |book| book['attributes']['title'] }
+          expect(titles).to eq(["Alice in Wonderland", "Zebra Crossing", "Brave New World", "1984"])
+        end
+      end
+
+      context "when combining order with search" do
+        let!(:search_book1) { create(:book, title: "Advanced Programming", author: "John Doe") }
+        let!(:search_book2) { create(:book, title: "Basic Programming", author: "Jane Smith") }
+        let!(:search_book3) { create(:book, title: "Programming Fundamentals", author: "Bob Wilson") }
+
+        it "orders search results by title ASC" do
+          get books_path, params: { search: "Programming", order: "ASC" }
+          response_data = JSON.parse(response.body)
+          books = response_data['data']
+          
+          expect(books.length).to eq(3)
+          titles = books.map { |book| book['attributes']['title'] }
+          expect(titles).to eq(["Advanced Programming", "Basic Programming", "Programming Fundamentals"])
+        end
+
+        it "orders search results by title DESC" do
+          get books_path, params: { search: "Programming", order: "DESC" }
+          response_data = JSON.parse(response.body)
+          books = response_data['data']
+          
+          expect(books.length).to eq(3)
+          titles = books.map { |book| book['attributes']['title'] }
+          expect(titles).to eq(["Programming Fundamentals", "Basic Programming", "Advanced Programming"])
+        end
+      end
+
+      context "role-based ordering" do
+        let!(:member_user) { create(:user, role: 'member') }
+        let!(:librarian_user) { create(:user, role: 'librarian') }
+
+        context "when member orders books" do
+          before do
+            sign_in member_user
+          end
+
+          it "returns ordered books without borrows information" do
+            get books_path, params: { order: "DESC" }
+            response_data = JSON.parse(response.body)
+            books = response_data['data']
+            
+            expect(books.length).to eq(4)
+            titles = books.map { |book| book['attributes']['title'] }
+            expect(titles).to eq(["Zebra Crossing", "Brave New World", "Alice in Wonderland", "1984"])
+            
+            # Check that borrows information is not included for members
+            books.each do |book|
+              expect(book['attributes']).not_to have_key('borrows')
+            end
+          end
+        end
+
+        context "when librarian orders books" do
+          before do
+            sign_in librarian_user
+          end
+
+          it "returns ordered books with borrows information" do
+            get books_path, params: { order: "DESC" }
+            response_data = JSON.parse(response.body)
+            books = response_data['data']
+            
+            expect(books.length).to eq(4)
+            titles = books.map { |book| book['attributes']['title'] }
+            expect(titles).to eq(["Zebra Crossing", "Brave New World", "Alice in Wonderland", "1984"])
+            
+            # Check that borrows information is included for librarians
+            books.each do |book|
+              expect(book['attributes']).to have_key('borrows')
+              expect(book['attributes']['borrows']).to be_an(Array)
+            end
+          end
+        end
+      end
+
+      context "when ordering with special characters in titles" do
+        let!(:special_book1) { create(:book, title: "The Cat's Cradle") }
+        let!(:special_book2) { create(:book, title: "The Cat & The Hat") }
+        let!(:special_book3) { create(:book, title: "The Cat (Special Edition)") }
+
+        it "orders books with special characters correctly" do
+          get books_path, params: { order: "ASC" }
+          response_data = JSON.parse(response.body)
+          books = response_data['data']
+          
+          # Find the special books in the response
+          special_books = books.select { |book| book['attributes']['title'].include?('Cat') }
+          titles = special_books.map { |book| book['attributes']['title'] }
+          
+          # Should be ordered alphabetically (special characters come after regular letters)
+          expect(titles).to eq(["The Cat's Cradle", "The Cat (Special Edition)", "The Cat & The Hat"])
+        end
+      end
+
+      context "when ordering with numbers in titles" do
+        let!(:number_book1) { create(:book, title: "Book 10") }
+        let!(:number_book2) { create(:book, title: "Book 2") }
+        let!(:number_book3) { create(:book, title: "Book 1") }
+
+        it "orders books with numbers correctly" do
+          get books_path, params: { order: "ASC" }
+          response_data = JSON.parse(response.body)
+          books = response_data['data']
+          
+          # Find the number books in the response
+          number_books = books.select { |book| book['attributes']['title'].include?('Book') }
+          titles = number_books.map { |book| book['attributes']['title'] }
+          
+          # Should be ordered alphabetically (not numerically)
+          expect(titles).to eq(["Book 1", "Book 10", "Book 2"])
+        end
+      end
+    end
   end
 
   describe "GET /books/:id" do
